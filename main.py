@@ -1,14 +1,12 @@
 import threading
 import tkinter
 import tkinter as tk
+from tkinter.constants import *
 
 import cv2
 import mediapipe as mp
 import numpy as np
 import PIL.Image, PIL.ImageTk
-
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
 
 # |-----------------------------------------------------------------|
 # |--- current letter --|---------------------|---leap skeleton-----|
@@ -18,11 +16,9 @@ from ttkbootstrap.constants import *
 import Leap
 from cvutils import getImageBorders, getImageFixedHeight, drawJointPosOnCanvas
 from leaputils import convert_distortion_maps, undistort, getPixelLocation, unpackLeapVector, getFingerJoints, \
-    getRawJointLocation, LeapCamType
+    getRawJointLocation, LeapCamType, ImportDataType
 from mputils import normalizeLandmarksToPx, drawFromMpLandmarks, getMyLandmarkStyles
 
-aslChars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-            'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 labelCounters = dict()
 
 mp_hands = mp.solutions.hands
@@ -53,6 +49,9 @@ class LeapCapture:
         self.running = True
         self.thread = threading.Thread(target=self.process)
         self.thread.start()
+
+    def get_cam_type(self):
+        return self.cam_type
 
     def process(self):
         while self.running:
@@ -140,7 +139,8 @@ class LeapCapture:
                             ) as hands:
                                 undistorted_main = cv2.cvtColor(undistorted_main, cv2.COLOR_GRAY2RGB)
                                 results = hands.process(undistorted_main)
-                                undistorted_main = cv2.cvtColor(undistorted_main, cv2.COLOR_RGB2BGR) #todo delete later
+                                undistorted_main = cv2.cvtColor(undistorted_main,
+                                                                cv2.COLOR_RGB2BGR)  # todo delete later
                                 if results.multi_hand_landmarks:
                                     for hand_landmarks in results.multi_hand_landmarks:
                                         pxNormalizedCoords = normalizeLandmarksToPx(hand_landmarks, self.width,
@@ -186,6 +186,7 @@ class tkCamera(tk.Frame):
             self.vid = LeapCapture(leapCamType=LeapCamType.RAW_IMG)
         else:
             self.vid = vid
+        self.camType = self.vid.get_cam_type()
         self.frame = None
         self.image = None
         self.joint_data = None
@@ -199,6 +200,9 @@ class tkCamera(tk.Frame):
 
         self.fps = fps
         self.delay = int(1000 / self.fps)
+
+    def get_type(self):
+        return self.camType
 
     def data_snapshot(self):
         if len(self.frame):
@@ -231,15 +235,93 @@ class tkCamera(tk.Frame):
             self.running = True
             self.update_frame()
 
+
 class DataStore:
     def __init__(self):
-        
+        self.aslCounter = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0, 'F': 0, 'G': 0, 'H': 0, 'I': 0,
+                           'J': 0, 'K': 0, 'L': 0, 'M': 0, 'N': 0, 'O': 0, 'P': 0, 'Q': 0, 'R': 0,
+                           'S': 0, 'T': 0, 'U': 0, 'V': 0, 'W': 0, 'X': 0, 'Y': 0, 'Z': 0, '0': 0,
+                           '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0}
+
+        self.DATA_FOLDER = "train"
+        self.HAND_CROPPED_FOLDER = "leapCropped"
+        self.LEAP_JOINTS_PHOTOS_FOLDER = "leapPhotos"
+        self.MP_PHOTOS_FOLDER = "mpPhotos"
+        self.LEAP_JOINTS_FOLDER = "leapJoints"
+        self.MP_JOINTS_FOLDER = "mpJoints"
+        self.dataDirs = [self.HAND_CROPPED_FOLDER, self.LEAP_JOINTS_PHOTOS_FOLDER, self.MP_PHOTOS_FOLDER,
+                         self.LEAP_JOINTS_FOLDER, self.MP_JOINTS_FOLDER]
+
+    def getCounters(self):
+        return self.aslCounter
+
+    def initCounters(self):
+        import os
+        for dataDir in self.dataDirs:
+            if not os.path.exists(f"{self.DATA_FOLDER}/{dataDir}"):
+                os.makedirs(f"{self.DATA_FOLDER}/{dataDir}")
+
+        fileCounters = self.countAllDataOccurrences()
+
+        if not all(x == fileCounters[0] for x in fileCounters):
+            print("FILE DISSIMILARITIES")  # debug here
+
+        self.updateCounters(fileCounters)
+
+    def updateCounters(self, fileCounters):
+        for k, v in self.aslCounter.items():
+            if k in fileCounters[0].keys():
+                self.aslCounter[k] = fileCounters[0][k]
+
+    def countAllDataOccurrences(self):
+        from os import listdir
+        from os.path import isfile, join
+        from collections import Counter
+        fileCounters = []
+        for dataDir in self.dataDirs:
+            files = [f for f in listdir(f"{self.DATA_FOLDER}/{dataDir}") if
+                     isfile(join(f"{self.DATA_FOLDER}/{dataDir}", f))]
+            fileCounters.append(dict(Counter([x[0].upper() for x in files])))
+        return fileCounters
+
+    def saveFiles(self, filesToSave, letter):
+        for file in filesToSave:
+            # train /           filetype depending on data_letter_number
+            filePath = f"{self.DATA_FOLDER}/{self.dataDirs[file['type']]}/{letter.upper()}-{self.aslCounter[letter.upper()]}"
+            if file["type"] > ImportDataType.MP_JOINT_CANVAS:
+                import pickle
+                with open(
+                        filePath + '.pickle',
+                        'wb') as f:
+                    pickle.dump(file["joints"], f)
+            else:
+                file["photo"].save(f"{filePath}.jpeg")
+
+        self.validateAndUpdateCounters(letter)
+
+    def validateAndUpdateCounters(self, letter):
+        fileCounters = self.countAllDataOccurrences()
+        letterCounters = [x[letter] for x in fileCounters]
+        if not all(x == letterCounters[0] for x in letterCounters):
+            print(f"something went wrong when saving letter {letter}:\n"
+                  f"|-{self.dataDirs[0]}-|-{self.dataDirs[1]}-|-{self.dataDirs[2]}-|-{self.dataDirs[3]}-|-{self.dataDirs[4]}-|\n"
+                  f"|-{letterCounters[0]}-|-{letterCounters[1]}-|-{letterCounters[2]}-|-{letterCounters[3]}-|-{letterCounters[4]}-|")
+        else:
+            self.updateCounters(fileCounters)
+
 
 class App:
 
-    def __init__(self, root):
+    def __init__(self, root, dataStore: DataStore):
+        if dataStore is None:
+            self.dataStore = DataStore()
+            self.dataStore.initCounters()
+        else:
+            self.dataStore = dataStore
+        self.dataStore = dataStore
         self.currentLetter = None
         self.activeLetter = ''
+        self.aslCounters = self.dataStore.getCounters()
         self.initGui(root)
         self.root = root
         self.rawCapture = LeapCapture(leapCamType=LeapCamType.RAW_IMG)
@@ -256,11 +338,44 @@ class App:
         self.root.mainloop()
 
     def cams_snapshot(self):
-        frame, joints = self.croppedHandCaptureCam.data_snapshot()
-        image = PIL.Image.fromarray(frame)
-        image.save("dupa.jpeg")
-        # for cam in self.camFeeds:
-        #     print("letter: ", self.activeLetter, cam.data_snapshot())
+        dataToSave = []
+        for camFeed in self.camFeeds[1:]:
+            snapshots = []
+            frame, joints = camFeed.data_snapshot()
+            image = PIL.Image.fromarray(frame)
+            if camFeed.camType == LeapCamType.JOINT_CANVAS:
+                snapshotData = dict()
+                snapshotData["type"] = ImportDataType.LEAP_JOINTS
+                snapshotData["joints"] = joints
+                snapshots.append(snapshotData)
+                snapshotData = dict()
+                snapshotData["type"] = ImportDataType.JOINT_CANVAS
+                snapshotData["photo"] = image
+                snapshotData["joints"] = None
+                snapshots.append(snapshotData)
+            elif camFeed.camType == LeapCamType.MP_JOINTS:
+                snapshotData = dict()
+                snapshotData["type"] = ImportDataType.MP_JOINTS
+                snapshotData["joints"] = joints
+                snapshots.append(snapshotData)
+                snapshotData = dict()
+                snapshotData["type"] = ImportDataType.MP_JOINT_CANVAS
+                snapshotData["photo"] = image
+                snapshotData["joints"] = None
+                snapshots.append(snapshotData)
+            else:  # camFeed.camType == LeapCamType.CROPPED_HAND:
+                snapshotData = dict()
+                snapshotData["type"] = ImportDataType.CROPPED_HAND
+                snapshotData["photo"] = image
+                snapshots.append(snapshotData)
+            dataToSave = dataToSave + snapshots
+
+        self.dataStore.saveFiles(dataToSave, self.activeLetter)
+        self.updateCounters(self.activeLetter)
+
+    def updateCounters(self, checkedLetter):
+        self.aslCounters = self.dataStore.getCounters()
+        labelCounters[checkedLetter.upper()].configure(text=self.aslCounters[checkedLetter.upper()])
 
     def on_closing(self):
         for cam in self.camFeeds:
@@ -273,23 +388,20 @@ class App:
             root.rowconfigure(i, weight=1)
             root.columnconfigure(i, weight=1)
 
-        currentLetterContainer = ttk.Frame(root)
+        currentLetterContainer = tk.Frame(root, background='black')
         currentLetterContainer.grid(row=0, column=0, sticky=tk.NS)
         for i in range(3):
             currentLetterContainer.rowconfigure(i, weight=1)
 
-        currentLetterLabel = ttk.Label(currentLetterContainer, text="Active letter:")
+        currentLetterLabel = tk.Label(currentLetterContainer, text="Active letter:", foreground='white',
+                                      background='black')
         currentLetterLabel.grid(row=0, column=0, sticky=tk.EW)
-        self.currentLetter = ttk.Label(currentLetterContainer, bootstyle="info", text="A",
-                                       anchor=CENTER)  # todo change to dynamic
+        self.currentLetter = tk.Label(currentLetterContainer, text="A", foreground='white', background='black',
+                                      anchor=CENTER)  # todo change to dynamic
         self.currentLetter.config(font=("Ubuntu", 36, 'bold'))
         self.currentLetter.grid(row=1, column=0, sticky=tk.EW)
 
-        ttk.Button(root, text='2').grid(row=1, column=0, sticky=tk.NSEW)  # this one is empty
-
-        # ttk.Button(root, text='3').grid(row=2, column=0, sticky=tk.NSEW)  # skeleton input here
-
-        counterFrameContainer = ttk.Frame(root)
+        counterFrameContainer = tk.Frame(root, background='black')
         counterFrameContainer.grid(row=1, column=0, columnspan=2, sticky=tk.NSEW)
 
         for i in range(4):
@@ -298,24 +410,19 @@ class App:
         for i in range(9):
             counterFrameContainer.columnconfigure(i, weight=1)
 
-        for index, x in enumerate(aslChars):
-            charFrame = tk.Frame(counterFrameContainer)
+        for index, x in enumerate(self.aslCounters.keys()):
+            charFrame = tk.Frame(counterFrameContainer, background='black')
             charFrame.grid(row=index // 9, column=index % 9, sticky=tk.NSEW)
             for j in range(3):
                 charFrame.columnconfigure(j, weight=1)
-            letterLabel = ttk.Label(charFrame, text=x + ": ")
+            letterLabel = tk.Label(charFrame, text=x + ": ", background='black', foreground='white')
             letterLabel.grid(row=0, column=0)
-            labelCounter = ttk.Label(charFrame, text='0')
+            labelCounter = tk.Label(charFrame, text=self.aslCounters[x], background='black', foreground='white')
             labelCounter.grid(row=0, column=1, columnspan=2, sticky=tk.W)
             labelCounters[x] = labelCounter  # tutaj wszystkie labelcountery
 
-        ttk.Button(root, text='6').grid(row=2, column=1, sticky=tk.NSEW)
-        ttk.Button(root, text='7').grid(row=0, column=2, sticky=tk.NSEW)
-        ttk.Button(root, text='8').grid(row=1, column=2, sticky=tk.NSEW)
-        ttk.Button(root, text='9').grid(row=2, column=2, sticky=tk.NSEW)
-
-        # ttk.Label(frm, text="hey").grid(column=0, row=0)
-        # ttk.Button(frm, text="Quit", command=root.destroy).grid(column=1, row=0)
+        # tk.Label(frm, text="hey").grid(column=0, row=0)
+        # tk.Button(frm, text="Quit", command=root.destroy).grid(column=1, row=0)
 
     def onKeyPress(self, event: tk.Event):
         # functional buttons
@@ -339,6 +446,9 @@ class App:
                 print("save as well", self.activeLetter)
 
 
-main = tk.Tk()
-style = ttk.Style("flatly")
-app = App(main)
+if __name__ == "__main__":
+    dataStore = DataStore()
+    dataStore.initCounters()
+    main = tk.Tk()
+    main.configure(background='black')
+    app = App(main, dataStore)

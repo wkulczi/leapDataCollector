@@ -12,6 +12,13 @@ class LeapCamType(enum.IntEnum):
     JOINT_CANVAS = 2
     MP_JOINTS = 3
 
+class ImportDataType(enum.IntEnum):
+    CROPPED_HAND = 0
+    JOINT_CANVAS = 1
+    MP_JOINT_CANVAS = 2
+    LEAP_JOINTS = 3
+    MP_JOINTS = 4
+
 
 def convert_distortion_maps(image):
     distortion_length = image.distortion_width * image.distortion_height
