@@ -138,7 +138,7 @@ def unpackLeapVector(locationVector: Leap.Vector):
 def getFingerJointColor(finger: Leap.Finger, bone: Leap.Bone):
     colorMat = [
         # [metacarpal, proximal, intermediate, distal],
-        [(0, 0, 0), (36, 115, 0), (81, 255, 0), (216, 255, 198)],  # thumb
+        [(255,255,255), (36, 115, 0), (81, 255, 0), (216, 255, 198)],  # thumb
         [(140, 22, 6), (255, 57, 0), (181, 114, 105), (255, 234, 107)],  # index
         [(65, 1, 90), (90, 48, 79), (255, 99, 214), (235, 181, 255)],  # middle
         [(152, 147, 151), (67, 73, 144), (0, 9, 132), (0, 18, 255)],  # ring
