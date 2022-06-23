@@ -134,13 +134,11 @@ class LeapCapture:
                             with mp_hands.Hands(
                                     model_complexity=0,
                                     max_num_hands=1,
-                                    min_detection_confidence=0.5,
+                                    min_detection_confidence=0.3,
                                     min_tracking_confidence=0.5
                             ) as hands:
                                 undistorted_main = cv2.cvtColor(undistorted_main, cv2.COLOR_GRAY2RGB)
                                 results = hands.process(undistorted_main)
-                                undistorted_main = cv2.cvtColor(undistorted_main,
-                                                                cv2.COLOR_RGB2BGR)  # todo delete later
                                 if results.multi_hand_landmarks:
                                     for hand_landmarks in results.multi_hand_landmarks:
                                         pxNormalizedCoords = normalizeLandmarksToPx(hand_landmarks, self.width,
@@ -376,6 +374,9 @@ class App:
     def updateCounters(self, checkedLetter):
         self.aslCounters = self.dataStore.getCounters()
         labelCounters[checkedLetter.upper()].configure(text=self.aslCounters[checkedLetter.upper()])
+        print(f"Saved letter: {checkedLetter}: {self.aslCounters[checkedLetter.upper()]}", end="\t")
+        print(f"Sum: {sum(self.aslCounters.values())}")
+
 
     def on_closing(self):
         for cam in self.camFeeds:
@@ -435,15 +436,16 @@ class App:
 
             if event.keysym in ['space', 'Return']:
                 self.cams_snapshot()
-                print("Save")
+                print("Save", end="\t")
         else:
             if self.activeLetter != event.char.upper():
                 if event.char.upper() in labelCounters.keys():
                     self.currentLetter.config(text=event.char.upper())
                     self.activeLetter = event.char.upper()
-                    print('save', self.activeLetter)
+                    # print('save', self.activeLetter)
             else:
-                print("save as well", self.activeLetter)
+                # print("save as well", self.activeLetter)
+                pass
 
 
 if __name__ == "__main__":
