@@ -21,7 +21,7 @@ def getEmptyJoints(folder):
     emptyFiles = []
     for file in files:
         buf = unpickle(f"../train/{folder}/{file}")
-        if buf is None:
+        if buf is None or (buf is not None and len(buf) == 0):
             emptyFiles.append(f"{file.split('.')[0]}.*")
     return emptyFiles
 
