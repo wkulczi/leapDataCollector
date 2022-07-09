@@ -282,10 +282,17 @@ class DataStore:
             fileCounters.append(dict(Counter([x[0].upper() for x in files])))
         return fileCounters
 
+    def getMaxIndexOfLetter(self, letter):
+        import glob
+
+        filenames = [file for file in glob.glob(f"train/leapCropped/{letter}*")]
+        return max([int(''.join(filter(str.isdigit, x))) for x in filenames])
+
     def saveFiles(self, filesToSave, letter):
+        nexIndexForLetter = self.getMaxIndexOfLetter(letter.upper()) + 1  #i know this is messy, i just need it to work
         for file in filesToSave:
             # train /           filetype depending on data_letter_number
-            filePath = f"{self.DATA_FOLDER}/{self.dataDirs[file['type']]}/{letter.upper()}-{self.aslCounter[letter.upper()]}"
+            filePath = f"{self.DATA_FOLDER}/{self.dataDirs[file['type']]}/{letter.upper()}-{nexIndexForLetter}"
             if file["type"] > ImportDataType.MP_JOINT_CANVAS:
                 import pickle
                 with open(
