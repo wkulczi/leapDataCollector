@@ -1,9 +1,8 @@
 from os import listdir
 from os.path import isfile, join
 import mediapipe
+from datetime import datetime
 import natsort
-from datetime import datetime
-from datetime import datetime
 
 def unpickle(filename):
     import pickle
@@ -14,16 +13,22 @@ def unpickle(filename):
         banana = None
     return banana
 
-files = [f for f in listdir(f"../train/mpJoints") if
-         isfile(join(f"../train/mpJoints", f))]
-files = natsort.natsorted(files)
+def getEmptyJoints(folder):
+    files = [f for f in listdir(f"../train/{folder}") if
+             isfile(join(f"../train/{folder}", f))]
+    files = natsort.natsorted(files)
+    
+    emptyFiles = []
+    for file in files:
+        buf = unpickle(f"../train/{folder}/{file}")
+        if buf is None:
+            emptyFiles.append(f"{file.split('.')[0]}.*")
+    return emptyFiles
 
-emptyFiles = []
-for file in files:
-    buf = unpickle(f"../train/mpJoints/{file}")
-    if buf is None:
-        emptyFiles.append(f"{file.split('.')[0]}.*")        
-        
+emptyLeap = getEmptyJoints("leapJoints")
+emptyMp = getEmptyJoints("mpJoints")
+emptyFiles = list(set(emptyLeap + emptyMp))
+
 now = datetime.now()
 dt = now.strftime("%H%M%S-%d%m")
 with open(f"toDelete_{dt}.txt", "w") as textfile:

@@ -375,7 +375,9 @@ class App:
         self.aslCounters = self.dataStore.getCounters()
         labelCounters[checkedLetter.upper()].configure(text=self.aslCounters[checkedLetter.upper()])
         print(f"Saved letter: {checkedLetter}: {self.aslCounters[checkedLetter.upper()]}", end="\t")
-        print(f"Sum: {sum(self.aslCounters.values())}")
+        print(f"Sum: {sum(self.aslCounters.values())}", end="\t")
+        sampledLetters = ["A", "B","E","G","H","I","L","P","R","V","W"]
+        print(f"Left: {(2000 * len(sampledLetters)) - sum(map(self.aslCounters.get, sampledLetters))}")
 
 
     def on_closing(self):
