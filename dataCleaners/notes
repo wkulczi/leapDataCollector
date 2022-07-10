@@ -1,0 +1,9 @@
+3 step cleaning process
+
+after reaching 2k*11letters I've reviewed data three times
+
+1. Delete data not containing anything (0kb)
+2. Delete samples that does not contain any data in mediapipe datasource
+3. Manual review
+
+After every step I've filled up samples to contain the specific ammount (2k per every letter)
