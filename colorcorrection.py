@@ -24,6 +24,7 @@ class tkImage(tk.Frame):
         self.contrast = 127
         self.brightness = 255
         self.cvimg = None
+        self.original = None
 
         self.height = height
         self.width = width
@@ -47,9 +48,9 @@ class tkImage(tk.Frame):
             alpha_b = (highlight - shadow) / 255
             gamma_b = shadow
 
-            buf = cv2.addWeighted(self.cvimg, alpha_b, self.cvimg, 0, gamma_b)
+            buf = cv2.addWeighted(self.original, alpha_b, self.original, 0, gamma_b)
         else:
-            buf = self.cvimg.copy()
+            buf = self.original.copy()
 
         if contrast != 0:
             f = float(131 * (contrast + 127)) / (127 * (131 - contrast))
@@ -80,8 +81,8 @@ class tkImage(tk.Frame):
         path_to_file = f"train/{self.dataFolder}/{self.activeFile}.jpeg"
 
         if exists(path_to_file):
-            original = cv2.imread(path_to_file, 1)
-            self.cvimg = original.copy()
+            self.original = cv2.imread(path_to_file, 1)
+            self.cvimg = self.original.copy()
             blue, green, red = cv2.split(self.cvimg)
             img = cv2.merge((red, green, blue))
             im = PIL.Image.fromarray(img)
@@ -96,6 +97,8 @@ class tkImage(tk.Frame):
         # updates current image
 
     def updateImage(self, activeLetter):
+        self.contrast = 127
+        self.brightness = 255
         self.activeFile = activeLetter
         self.loadData()
 
@@ -103,7 +106,7 @@ class tkImage(tk.Frame):
         if increase:
             self.brightness = self.cap(self.brightness + 1, 0, 510)
         else:
-            self.brightness = self.cap(self.brightness + 1, 0, 510)
+            self.brightness = self.cap(self.brightness - 1, 0, 510)
         self.cvimg = self.apply_brightness_contrast(self.brightness, self.contrast, log=True)
         self.reloadChange()
 
@@ -111,7 +114,7 @@ class tkImage(tk.Frame):
         if increase:
             self.contrast = self.cap(self.contrast + 1, 0, 510)
         else:
-            self.contrast = self.cap(self.contrast + 1, 0, 510)
+            self.contrast = self.cap(self.contrast - 1, 0, 510)
         self.cvimg = self.apply_brightness_contrast(self.brightness, self.contrast, log=True)
         self.reloadChange()
 
@@ -217,6 +220,8 @@ class App:
             self.rightArrowClick()
         elif event.keysym == 'Left':
             self.leftArrowClick()
+        elif event.keysym == "Return":
+            self.leapCroppedCanvas.overwriteImage()
         else:
             if event.char.upper() in ["Q","E","A","D"]:
                 if event.char.upper() in ["Q","E"]:
